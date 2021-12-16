@@ -7,9 +7,5 @@ Instructions on how to use:
 1. Replace the input_path for the .csv data to consume
 2. Replace the output_path for where to write the .json result
 
-### Beginner
-Create a simple application that can run locally on a unix environment that has uses some sort of package management tool for your chosen language. There should be a few unit tests testing the main logic of your program.
-
-```
-    git bundle create <anything>.bundle --all
-```
+Things to improve on:
+1. Create logic for getting heirarchy of records that does not depend on current column names available.
