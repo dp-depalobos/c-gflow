@@ -1,6 +1,6 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, collect_list, column, lit, struct, udf
-from pyspark.sql.types import ArrayType, IntegerType, StructType
+from pyspark.sql.functions import col, collect_list, lit, struct, udf
+from pyspark.sql.types import ArrayType, IntegerType, StringType, StructField, StructType
 
 def initializeSpark():
     return SparkSession.builder \
@@ -84,26 +84,37 @@ def get_depth_node_map(df, max_count):
 
 spark = initializeSpark()
 
-input_path = "/home/dindo/client/data.csv"
+input_path = "/home/dindo/client/data3.csv"
 df = spark.read.csv(input_path, header="true")
 df = add_count_column(df)
 
 max_count = get_max_count(df)
 depth_node_map = get_depth_node_map(df, max_count)
 
-third_df_raw = concat_columns(depth_node_map[3], True)
-third_df_agg = aggregate_child_node(third_df_raw)
+agg = {}
+for i in range(max_count, 0, -1):
+    if max_count == i:
+        formatted = concat_columns(depth_node_map[i], True)
+        agg[i] = aggregate_child_node(formatted)
+    elif i == 1:
+        agg[i] = depth_node_map[i].join( \
+            agg[i+1], depth_node_map[i].ID == agg[i+1].tempID, 'left')
+    else:
+        merged = depth_node_map[i].join( \
+            agg[i+1], depth_node_map[i].ID == agg[i+1].tempID, 'left')
+        formatted = concat_columns(merged)
+        agg[i] = aggregate_child_node(formatted)
 
-second_df_merged = depth_node_map[2].join( \
-    third_df_agg, depth_node_map[2].ID == third_df_agg.tempID, 'left')
+schema = StructType([ \
+    StructField('label', StringType(), True), \
+    StructField('ID', StringType(), True), \
+    StructField('link', StringType(), True), \
+    StructField('children', ArrayType(StructType()), True)])
 
-second_df_formatted = concat_columns(second_df_merged)
-second_df_agg = aggregate_child_node(second_df_formatted)
-
-first_df_merged = depth_node_map[1].join( \
-    second_df_agg, depth_node_map[1].ID == second_df_agg.tempID, 'left')
-
-res = first_df_merged.select('label', 'ID', 'link', 'children')
+if agg:
+    res = agg[1].select('label', 'ID', 'link', 'children')
+else:
+    res = spark.createDataFrame(spark.sparkContext.emptyRDD(), schema)
 
 output_path = "/home/dindo/client/data.json"
 res.write.json(output_path, 'overwrite')
