@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, collect_list, lit, struct, udf
+from pyspark.sql.functions import col, collect_list, column, lit, struct, udf
 from pyspark.sql.types import ArrayType, IntegerType, StructType
 
 def initializeSpark():
@@ -51,35 +51,57 @@ def aggregate_child_node(df):
     return df.withColumnRenamed('collect_list(concat)', 'children') \
         .withColumnRenamed('pid', 'tempID')
 
+def get_column_names(df, depth):
+    columns = [c for c in df.columns if str(depth) in c]
+    name = ''
+    url = ''
+    id = ''
+    for c in columns:
+        if 'Name' in c:
+            name = c
+        if 'URL' in c:
+            url = c
+        if 'ID' in c:
+            id = c
+    return name, id, url
+
+def get_max_count(df):
+    return df.agg({'count': 'max'}).collect()[0][0]
+
+def get_depth_node_map(df, max_count):
+    depth_node_map = {}
+    for i in range(max_count, 0, -1):
+        if i == 1:
+            columns = get_column_names(df, i)
+            depth_node_map[i] = get_first_node(\
+                df, columns[0], columns[1], columns[2], i)
+        else:
+            columns = get_column_names(df, i)
+            parent_id = 'Level ' + str(i-1) + str(' - ID')
+            depth_node_map[i] = get_subsequent_node(\
+                df, parent_id, columns[0], columns[1], columns[2], i)
+    return depth_node_map
+
 spark = initializeSpark()
 
 input_path = "/home/dindo/client/data.csv"
 df = spark.read.csv(input_path, header="true")
 df = add_count_column(df)
 
-first_parent = get_first_node( \
-    df, 'Level 1 - Name', \
-    'Level 1 - ID', 'Level 1 - URL', 1)
+max_count = get_max_count(df)
+depth_node_map = get_depth_node_map(df, max_count)
 
-second_parent = get_subsequent_node( \
-    df, 'Level 1 - ID', 'Level 2 - Name', \
-    'Level 2 - ID', 'Level 2 URL', 2)
-
-third_parent = get_subsequent_node( \
-    df, 'Level 2 - ID', 'Level 3 - Name', \
-    'Level 3 - ID', 'Level 3 URL', 3)
-
-third_df_raw = concat_columns(third_parent, True)
+third_df_raw = concat_columns(depth_node_map[3], True)
 third_df_agg = aggregate_child_node(third_df_raw)
 
-second_df_merged = second_parent.join( \
-    third_df_agg, second_parent.ID == third_df_agg.tempID, 'left')
+second_df_merged = depth_node_map[2].join( \
+    third_df_agg, depth_node_map[2].ID == third_df_agg.tempID, 'left')
 
 second_df_formatted = concat_columns(second_df_merged)
 second_df_agg = aggregate_child_node(second_df_formatted)
 
-first_df_merged = first_parent.join( \
-    second_df_agg, first_parent.ID == second_df_agg.tempID, 'left')
+first_df_merged = depth_node_map[1].join( \
+    second_df_agg, depth_node_map[1].ID == second_df_agg.tempID, 'left')
 
 res = first_df_merged.select('label', 'ID', 'link', 'children')
 
