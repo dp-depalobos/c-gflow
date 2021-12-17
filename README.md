@@ -8,4 +8,5 @@ Instructions on how to use:
 2. Replace the output_path for where to write the .json result
 
 Things to improve on:
-1. Create logic for getting heirarchy of records that does not depend on current column names available.
+(DONE) 1. Create logic for getting heirarchy of records that does not depend on current column names available.
+2. Modify logic to automatically iterate to different levels

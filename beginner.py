@@ -1,5 +1,6 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, collect_list, struct
+from pyspark.sql.functions import col, collect_list, lit, struct, udf
+from pyspark.sql.types import ArrayType, IntegerType, StructType
 
 def initializeSpark():
     return SparkSession.builder \
@@ -9,51 +10,78 @@ def initializeSpark():
         .appName("morisson") \
         .getOrCreate()
 
-def formatToRaw(df):
-    return df.withColumn('concat', (struct(col('label'), col('ID'), col('link'))))
+def concat_columns(df, is_last_node=False):
+    if is_last_node:
+        df = df.withColumn( \
+            'children', lit(None).cast(ArrayType(StructType())))
+    return df.withColumn( \
+        'concat', (struct( \
+            col('label'), col('ID'), \
+            col('link'), col('children'))))
+
+def count_not_null(*args):
+    i = 0
+    for c in args:
+        if c is not None:
+            i += 1
+    return i
+
+def add_count_column(df):
+    my_udf = udf(lambda *x: count_not_null(*x), IntegerType())
+    df_columns = [col(c) for c in df.columns if 'ID' in c]
+    return df.withColumn("count", my_udf(*df_columns))
+
+def get_first_node(df, name, id, url, depth):
+    return df.select(name, id, url) \
+        .filter(df['count'] == depth) \
+        .withColumnRenamed(name, 'label') \
+        .withColumnRenamed(id, 'ID') \
+        .withColumnRenamed(url, 'link')
+
+def get_subsequent_node(df, parent, name, id, url, depth):
+    return df.select(parent, name, id, url) \
+        .filter(df['count'] == depth) \
+        .withColumnRenamed(parent, 'pid') \
+        .withColumnRenamed(name, 'label') \
+        .withColumnRenamed(id, 'ID') \
+        .withColumnRenamed(url, 'link') \
+
+def aggregate_child_node(df):
+    df = df.groupBy(df.pid).agg(collect_list(df.concat))
+    return df.withColumnRenamed('collect_list(concat)', 'children') \
+        .withColumnRenamed('pid', 'tempID')
 
 spark = initializeSpark()
 
 input_path = "/home/dindo/client/data.csv"
 df = spark.read.csv(input_path, header="true")
+df = add_count_column(df)
 
-first_parent = df.select('Level 1 - Name', 'Level 1 - ID', 'Level 1 - URL') \
-    .filter(df['Level 1 - ID'].isNotNull() & df['Level 2 - ID'].isNull()) \
-    .withColumnRenamed('Level 1 - Name', 'label') \
-    .withColumnRenamed('Level 1 - ID', 'ID') \
-    .withColumnRenamed('Level 1 - URL', 'link')
+first_parent = get_first_node( \
+    df, 'Level 1 - Name', \
+    'Level 1 - ID', 'Level 1 - URL', 1)
 
-second_parent = df.select('Level 1 - ID', 'Level 2 - Name', 'Level 2 - ID', 'Level 2 URL') \
-    .filter(df['Level 2 - ID'].isNotNull() & df['Level 3 - ID'].isNull()) \
-    .withColumnRenamed('Level 1 - ID', 'pid') \
-    .withColumnRenamed('Level 2 - Name', 'label') \
-    .withColumnRenamed('Level 2 - ID', 'ID') \
-    .withColumnRenamed('Level 2 URL', 'link')
+second_parent = get_subsequent_node( \
+    df, 'Level 1 - ID', 'Level 2 - Name', \
+    'Level 2 - ID', 'Level 2 URL', 2)
 
-third_parent = df.select('Level 2 - ID', 'Level 3 - Name', 'Level 3 - ID', 'Level 3 URL') \
-    .filter(df['Level 3 - ID'].isNotNull()) \
-    .withColumnRenamed('Level 2 - ID', 'pid') \
-    .withColumnRenamed('Level 3 - Name', 'label') \
-    .withColumnRenamed('Level 3 - ID', 'ID') \
-    .withColumnRenamed('Level 3 URL', 'link')
+third_parent = get_subsequent_node( \
+    df, 'Level 2 - ID', 'Level 3 - Name', \
+    'Level 3 - ID', 'Level 3 URL', 3)
 
-third_df_raw = formatToRaw(third_parent)
-third_df_agg = third_df_raw.groupBy(third_df_raw.pid).agg(collect_list(third_df_raw.concat))
+third_df_raw = concat_columns(third_parent, True)
+third_df_agg = aggregate_child_node(third_df_raw)
 
-third_df_temp = third_df_agg.withColumnRenamed('collect_list(concat)', 'children').withColumnRenamed('pid', 'tempID')
-second_df_raw = formatToRaw(second_parent)
-second_df_merged = second_df_raw.join(third_df_temp, second_df_raw.ID == third_df_temp.tempID, 'left')
+second_df_merged = second_parent.join( \
+    third_df_agg, second_parent.ID == third_df_agg.tempID, 'left')
 
-second_df_formatted = second_df_merged.withColumn('concat', (struct(col('label'), col('ID'), col('link'), col('children'))))
-second_df_agg = second_df_formatted.groupBy(second_df_formatted.pid).agg(collect_list(second_df_formatted.concat))
+second_df_formatted = concat_columns(second_df_merged)
+second_df_agg = aggregate_child_node(second_df_formatted)
 
-second_df_temp = second_df_agg.withColumnRenamed('collect_list(concat)', 'children').withColumnRenamed('pid', 'tempID')
-first_df_raw = formatToRaw(first_parent)
-first_df_merged = first_df_raw.join(second_df_temp, first_df_raw.ID == second_df_temp.tempID, 'left')
+first_df_merged = first_parent.join( \
+    second_df_agg, first_parent.ID == second_df_agg.tempID, 'left')
 
-first_df_formatted = first_df_merged.withColumn('concat', (struct(col('label'), col('ID'), col('link'), col('children'))))
-
-res = first_df_formatted.select('label', 'ID', 'link', 'children')
+res = first_df_merged.select('label', 'ID', 'link', 'children')
 
 output_path = "/home/dindo/client/data.json"
-res.write.json(output_path)
+res.write.json(output_path, 'overwrite')
