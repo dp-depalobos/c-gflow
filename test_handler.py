@@ -4,7 +4,7 @@ from pandas.testing import assert_frame_equal
 from pyspark.sql import SparkSession
 from pyspark.sql.types import ArrayType, StringType, StructField, StructType
 
-import beginner
+import handler
 
 class TestBase(unittest.TestCase):
     @classmethod
@@ -30,15 +30,15 @@ class TestBase(unittest.TestCase):
             StructField('link', StringType()),\
             StructField('children', ArrayType(self.get_schema(depth)))])
 
-class test_beginner(TestBase):
+class test_handler(TestBase):
     def test_should_create_empty_df_when_empty_rows(self):
         path = "/home/dindo/t2/c-gflow/test_csvs/empty_rows.csv"
-        result = beginner.handle(path, self.spark)
+        result = handler.handle(path, self.spark)
         self.assertTrue(result.rdd.isEmpty())
 
     def test_should_produce_correct_json_file_level_one(self):
         path = "/home/dindo/t2/c-gflow/test_csvs/level_one.csv"
-        result = beginner.handle(path, self.spark)
+        result = handler.handle(path, self.spark)
         schema = self.get_schema(1)
         check = self.spark.read.json(\
             "/home/dindo/t2/c-gflow/test_results_json/level_one.json", schema)
@@ -48,7 +48,7 @@ class test_beginner(TestBase):
 
     def test_should_produce_correct_json_file_level_two(self):
         path = "/home/dindo/t2/c-gflow/test_csvs/level_two.csv"
-        result = beginner.handle(path, self.spark)
+        result = handler.handle(path, self.spark)
         schema = self.get_schema(2)
         check = self.spark.read.json(\
             "/home/dindo/t2/c-gflow/test_results_json/level_two.json",\
@@ -59,7 +59,7 @@ class test_beginner(TestBase):
 
     def test_should_produce_correct_json_for_original_data(self):
         path = "/home/dindo/t2/c-gflow/test_csvs/original_data.csv"
-        result = beginner.handle(path, self.spark)
+        result = handler.handle(path, self.spark)
 
         schema = self.get_schema(3)
         check = self.spark.read.json(\
@@ -71,7 +71,7 @@ class test_beginner(TestBase):
 
     def test_should_produce_correct_json_for_level_four(self):
         path = "/home/dindo/t2/c-gflow/test_csvs/level_four.csv"
-        result = beginner.handle(path, self.spark)
+        result = handler.handle(path, self.spark)
         schema = self.get_schema(4)
         check = self.spark.read.json(\
             "/home/dindo/t2/c-gflow/test_results_json/level_four.json",\
