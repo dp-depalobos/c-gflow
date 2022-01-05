@@ -1,118 +1,49 @@
-import os
-import unittest
-from pandas.testing import assert_frame_equal
+import pytest
 
-from pyspark.sql import SparkSession
-from pyspark.sql.types import ArrayType, StringType, StructField, StructType
-from pyspark.sql.functions import col
+import test_helper as th
+import main
 
-from src import handler
+@pytest.fixture(scope='module')
+def test_client():
+    flask_app = main.app
+    testing_client = flask_app.test_client()
+    ctx = flask_app.app_context()
+    ctx.push()
+    yield testing_client
+    ctx.pop()
 
-LEVEL_ONE = 1
-LEVEL_THREE = 3
-LEVEL_SIX = 6
-LEVEL_TEN = 10
-CSV = ".csv"
-FILES = "files"
-JSON = ".json"
-OUTPUT = "output"
-ONE_ROW = "one_row"
-ORIGINAL_DATA = "original_data"
-ORIGINAL_DUPLICATE_RECORD = "original_duplicate_record"
-ORIGINAL_ONE_LEVEL = "original_one_level_data"
-UPTO_LEVEL_6 = "original_data_upto_level_6"
-UPTO_LEVEL_10 = "original_data_upto_level_10"
+def test_handler_upload_original_csv_file(test_client):
+    file = th.ORIGINAL_DATA_TEST
+    data = {'file': (open(file, 'rb'), file)}
+    response = test_client.post('/', data=data)
+    assert th.ORIGINAL_TXT in response.get_data(as_text=True)
 
-class TestBase(unittest.TestCase):
-    current = os.getcwd()
+def test_handler_upload_one_row(test_client):
+    file = th.ONE_ROW_TEST
+    data = {'file': (open(file, 'rb'), file)}
+    response = test_client.post('/', data=data)
+    assert th.ONE_ROW_TXT in response.get_data(as_text=True)
 
-    @classmethod
-    def setUpClass(cls):
-        spark = SparkSession\
-            .builder\
-            .appName("Test PySpark")\
-            .master("local[*]")\
-            .getOrCreate()
-        cls.spark = spark
-    
-    @classmethod
-    def tearDownClass(cls):
-        cls.spark.stop()
+def test_handler_upload_one_level_duplicate(test_client):
+    file = th.ORIGINAL_ONE_LEVEL_TEST
+    data = {'file': (open(file, 'rb'), file)}
+    response = test_client.post('/', data=data)
+    assert th.ONE_ROW_DUPLICATE_TXT in response.get_data(as_text=True)
 
-    def get_schema(self, depth):
-        if depth == 0:
-            return StringType()
-        depth -= 1
-        return StructType([
-            StructField('label', StringType()),\
-            StructField('ID', StringType()),\
-            StructField('link', StringType()),\
-            StructField('children', ArrayType(self.get_schema(depth)))])
+def test_handler_upload_original_duplicate(test_client):
+    file = th.DUPLICATE_RECORD_TEST
+    data = {'file': (open(file, 'rb'), file)}
+    response = test_client.post('/', data=data)
+    assert th.ORIGINAL_DUPLICATE_TXT in response.get_data(as_text=True)
 
-    def get_file_path(self, folder, filename, ext):
-        return os.path.join(self.current, folder, filename + str(ext))
+def test_handler_upload_upto_level_6(test_client):
+    file = th.UPTO_LEVEL_6_TEST
+    data = {'file': (open(file, 'rb'), file)}
+    response = test_client.post('/', data=data)
+    assert th.UPTO_LEVEL_6_TXT in response.get_data(as_text=True)
 
-    def read_check(self, depth, path):
-        schema = self.get_schema(depth)
-        return self.spark.read.json(\
-            path, schema)
-
-    def compare_nested(self, left, right):
-        left_format = self.convert_list_to_str(left).toPandas()
-        right_format = self.convert_list_to_str(right).toPandas()
-        assert_frame_equal(left_format, right_format)
-    
-    def compare_level_one(self, left, right):
-        left_format = left.toPandas()
-        right_format = right.toPandas()
-        assert_frame_equal(left_format, right_format)
-
-    def convert_list_to_str(self, df):
-        """This method is necessary for comparing the children column since it is originally an array type"""
-        return df.withColumn('children', col('children').cast('String'))
-
-class test_handler(TestBase):
-    def test_should_produce_correct_json_file_one_row(self):
-        input_path = self.get_file_path(FILES, ONE_ROW, CSV)
-        result = handler.handle(input_path, self.spark)
-        check_path = self.get_file_path(OUTPUT, ONE_ROW, JSON)
-        check = self.read_check(LEVEL_THREE, check_path)
-        self.compare_level_one(result, check)
-
-    def test_should_produce_correct_json_file_level_six(self):
-        input_path = self.get_file_path(FILES, UPTO_LEVEL_6, CSV)
-        result = handler.handle(input_path, self.spark)
-        check_path = self.get_file_path(OUTPUT, UPTO_LEVEL_6, JSON)
-        check = self.read_check(LEVEL_SIX, check_path)
-        self.compare_nested(result, check)
-
-    def test_should_produce_correct_json_for_level_10(self):
-        input_path = self.get_file_path(FILES, UPTO_LEVEL_10, CSV)
-        result = handler.handle(input_path, self.spark)
-        check_path = self.get_file_path(OUTPUT, UPTO_LEVEL_10, JSON)
-        check = self.read_check(LEVEL_TEN, check_path)
-        self.compare_nested(result, check)
-
-    def test_should_produce_correct_json_for_original_data(self):
-        input_path = self.get_file_path(FILES, ORIGINAL_DATA, CSV)
-        result = handler.handle(input_path, self.spark)
-        check_path = self.get_file_path(OUTPUT, ORIGINAL_DATA, JSON)
-        check = self.read_check(LEVEL_THREE, check_path)
-        self.compare_nested(result, check)
-        
-    def test_should_produce_correct_json_for_original_data_with_duplicate(self):
-        input_path = self.get_file_path(FILES, ORIGINAL_DUPLICATE_RECORD, CSV)
-        result = handler.handle(input_path, self.spark)
-        check_path = self.get_file_path(OUTPUT, ORIGINAL_DUPLICATE_RECORD, JSON)
-        check = self.read_check(LEVEL_SIX, check_path)
-        self.compare_nested(result, check)
-
-    def test_should_produce_correct_json_for_one_level_duplicate(self):
-        input_path = self.get_file_path(FILES, ORIGINAL_ONE_LEVEL, CSV)
-        result = handler.handle(input_path, self.spark)
-        check_path = self.get_file_path(OUTPUT, ORIGINAL_ONE_LEVEL, JSON)
-        check = self.read_check(LEVEL_ONE, check_path)
-        self.compare_level_one(result, check)
-
-if __name__ == '__main__':
-    unittest.main()
+def test_handler_upload_upto_level_10(test_client):
+    file = th.UPTO_LEVEL_10_TEST
+    data = {'file': (open(file, 'rb'), file)}
+    response = test_client.post('/', data=data)
+    assert th.UPTO_LEVEL_10_TXT in response.get_data(as_text=True)

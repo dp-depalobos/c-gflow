@@ -1,36 +1,93 @@
 Techonology used:
-Python PySpark
-    Supports consuming data in .csv format and writing output in .json format
-    Built in aggregate functions to combine rows under the same parent object
-Unittest
-    Framework for writing scalable test cases in python
-Pandas testing framework
-    Built in function to compare two dataframe objects
+Python
+    import csv to read csv files
+    import json to convert output into json string format
+    import flask to create webui for uploading csv files and displaying json string
+
+Pytest
+    To run all test files and test suites
 
 Installation and setup instructions:
-1. Install pyenv on the current environment as per instructions here:
-    https://github.com/pyenv/pyenv
-2. Install any 3.8 version of python.
-    pyenv install 3.8.10 #you can replace this version with any 3.8.*
-3. Create python virtualenv
-    pyenv virtualenv 3.8.10 py_3_8_10 #you can replace the venv name here
-4. Activate virtualenv
-    pyenv activate py_3_8_10
-5. Install all dependencies in requirements.txt
-    pip install -r requirements.txt
-6. Check if all packages have been installed
-    pip freeze > packages.txt #compare the contents from requirements.txt and packages.txt
+# Note: Make sure that the current directory is in csv_converter
+1. If you don't have pyenv installed, execute the installation script
+    # bash install.sh
+2. Create a virtual env using script 
+    # bash create_venv.sh
+3. Activate to your VENV
+    # pyenv activate py_3_8_12
+4. Install required packages
+    # pip install -r requirements.txt
 
-Instructions on how to run test
-1. Inside virtualenv and folder which contains test_*.py run command py.test
+Running tests:
+# Note: Make sure that the current directory is in csv_converter
+1. Run pytest
+    # py.test
 
-Instructions on how to run script    
-1. Replace the input_path for the .csv data to consume
-2. Replace the output_path for where to write the .json result
+Running the app:
+# Note: Make sure that the current directory is in csv_converter
+1. Run main.py
+    # python3 main.py
 
-Things to improve on:
-1. Improvement in time complexity in for loops
-2. Check if there could be more things to refactor
-3. Fix logic where parents with no child are set to null instead of array
-4. Handle duplicate data
-5. Create error message when there are problems in the input csv
+Logic of handle:
+# Note: Assumption that csv file is valid
+The input CSV will look like
+<!-- 
+  +-----------------------------------------------------------------------------------+
+  | Base url  | 1-id | 1-name | 1-url | 2-id | 2-name | 2-url | 3-id | 3-name | 3-url | 
+  +-----------------------------------------------------------------------------------+
+  | "/browse" |    1 |   Best |  ...  |    2 |  Fresh |  ...  |    4 | Cheese |  ...  | 
+  | "/browse" |    1 |   Best |  ...  |    2 |  Fresh |  ...  |    5 |  Soups |  ...  | 
+  | "/browse" |    1 |   Best |  ...  |    2 |  Fresh |  ...  |    6 |  Pizza |  ...  | 
+  | "/browse" |    1 |   Best |  ...  |    3 | Drinks |  ...  |    7 |   Wine |  ...  |
+  | "/browse" |    1 |   Best |  ...  |    3 | Drinks |  ...  |    8 |   Beer |  ...  |
+  +-----------------------------------------------------------------------------------+
+ -->
+
+It will then be converted to a dictionary with level as keys, and rows with values from columns specific to that level
+<!-- 
+  Level 1
+  +---------------------------+
+  | key[id] | name | id | url |
+  +---------------------------+
+  |       1 | Best |  1 | ... |
+  +---------------------------+
+
+  Level 2
+  +------------------------------------+
+  | key[(pid, id)] |   name | id | url |
+  +------------------------------------+
+  |         (1, 2) |  Fresh |  2 | ... |
+  |         (1, 3) | Drinks |  3 | ... |
+  +------------------------------------+
+
+  Level 3
+  +------------------------------------+
+  | key[(pid, id)] |   name | id | url |
+  +------------------------------------+
+  |         (2, 4) | Cheese |  4 | ... |
+  |         (2, 5) |  Soups |  5 | ... |
+  |         (2, 6) |  Pizza |  6 | ... |
+  |         (3, 7) |   Wine |  7 | ... |
+  |         (3, 8) |   Beer |  8 | ... |
+  +------------------------------------+
+ -->
+
+It will then be combined to a single node. Rows having common parent will be aggregated together
+<!-- 
+  Sample aggregate
+  +--------------------------------------------------------------+
+  | key[pid] |                     children                      |
+  +--------------------------------------------------------------+
+  |        3 | {"name":Wine, "id": 7, "url":..., "children":[]}, |
+  |          | {"name":Beer, "id": 8, "url":..., "children":[]}  |
+  +--------------------------------------------------------------+
+
+  End node
+  +------------------------------------------------------------------------+
+  | name | id | url |                       children                       |
+  +------------------------------------------------------------------------+ 
+  |      |    |     | {"name":Drinks, "id":3, "url":..., "children":       |
+  | Best |  1 | ... | [{"name":Wine, "id":7, "url"..., "children"[]},      |
+  |      |    |     |  {"name":Beer, "id":8, "url"..., "children"[]}], ... |
+  +------------------------------------------------------------------------+
+ -->

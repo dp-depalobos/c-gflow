@@ -1,15 +1,7 @@
-import os
-
 import pytest
-from werkzeug.wrappers.response import ResponseStream
+import test_helper as th
 
 import main
-
-TXT_FILE = os.path.join("files", "samp.txt")
-EMPTY_ROWS = os.path.join("files", "columns_only.csv")
-EMPTY_FILE = os.path.join("files", "empty_file.csv")
-ORIGINAL_DATA = os.path.join("files", "original_data.csv")
-CURRENT = os.getcwd()
 
 @pytest.fixture(scope='module')
 def test_client():
@@ -21,25 +13,31 @@ def test_client():
     ctx.pop()
 
 def test_upload_textfile(test_client):
-    file = os.path.join(CURRENT, TXT_FILE)
+    file = th.TXT_FILE_TEST
     data = {'file': (open(file, 'rb'), file)}
     response = test_client.post('/', data=data)
     assert response.status_code == 302
     
 def test_upload_valid_csv_file(test_client):
-    file = os.path.join(CURRENT, ORIGINAL_DATA)
+    file = th.ORIGINAL_DATA_TEST
     data = {'file': (open(file, 'rb'), file)}
     response = test_client.post('/', data=data)
     assert response.status_code == 200
 
 def test_upload_empty_rows(test_client):
-    file = os.path.join(CURRENT, EMPTY_ROWS)
+    file = th.EMPTY_ROWS_TEST
     data = {'file': (open(file, 'rb'), file)}
     response = test_client.post('/', data=data)
-    assert response.status_code == 500
+    assert response.status_code == 302
 
 def test_upload_empty_file(test_client):
-    file = os.path.join(CURRENT, EMPTY_FILE)
+    file = th.EMPTY_FILE_TEST
     data = {'file': (open(file, 'rb'), file)}
     response = test_client.post('/', data=data)
-    assert response.status_code == 500
+    assert response.status_code == 302
+
+def test_upload_base_data(test_client):
+    file = th.BASE_DATA_TEST
+    data = {'file': (open(file, 'rb'), file)}
+    response = test_client.post('/', data=data)
+    assert response.status_code == 302
