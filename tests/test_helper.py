@@ -4,6 +4,7 @@ import os
 
 CURRENT = os.getcwd()
 BASE_DATA_TEST = os.path.join(CURRENT, "files", "base_data.csv")
+STRUCTURE_ISSUE = os.path.join(CURRENT, "files", "data_test_structure_issue.csv")
 ONE_ROW_TEST = os.path.join(CURRENT, "files", "one_row.csv")
 ORIGINAL_DATA_TEST = os.path.join(CURRENT, "files", "original_data.csv")
 DUPLICATE_RECORD_TEST = os.path.join(CURRENT, "files","original_duplicate_record.csv")

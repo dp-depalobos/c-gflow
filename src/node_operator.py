@@ -4,12 +4,6 @@ ID = " - ID"
 class NodeOperator:
     """ Responsible for modifying the node such as adding
         additional columns or combining rows together """
-    def calc_max_depth(self, headers):
-        depth = 0
-        for i in headers:
-            if "id" in i.lower():
-                depth += 1
-        return depth
 
     def create_depth_node(self, max_depth, rows, columns):
         dct = {}
