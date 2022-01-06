@@ -67,8 +67,8 @@ It will then be combined to a single node. Rows having common parent will be agg
   Sample aggregate
   | key[pid] |                     children                       |
   |:--------:|:--------------------------------------------------:|
-  |        3 | [{"name":Wine, "id": 7, "url":..., "children":[]}, |
-  |          |  {"name":Beer, "id": 8, "url":..., "children":[]}] |
+  |        3 | [{"name":Wine, "id": 7, "url":..., "children":[]}, {"name":Beer, "id": 8, "url":..., "children":[]}] |
+  <!-- |          |   | -->
 
   End node
   | name | id | url |                       children                       |
