@@ -39,11 +39,9 @@ class NodeOperator:
         return name, id, url
 
     def aggregate_columns(self, rows):
-        """ Combines the column elements into a single dictionary.
-            Then creates a dictionary of list of these values sharing
-            the same parent 
-        eg. dct[pid] = [{"lbl":"a", "ID":"1", "link":"link_1", "children":[]},
-                        {"lbl":"b", "ID":"2", "link":"link_2", "children":[]}] """
+        """ Combines the column elements into a single dictionary,
+            then creates a dictionary of list of these values sharing
+            the same parent """
         dct = {}
         for row in rows:
             pid = row["pid"]
@@ -94,7 +92,7 @@ class NodeOperator:
     def combine_nodes(self, node, max_depth):
         """ Combine the nodes of different levels having a parent to 
             child relation. The child rows having the same parent will be 
-            combined into a list of rows. """
+            aggregated into a list of rows. """
         end_node = []
         for i in range(max_depth, 0, -1):
             if max_depth == i:
