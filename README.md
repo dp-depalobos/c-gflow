@@ -68,12 +68,11 @@ It will then be combined to a single node. Rows having common parent will be agg
   | key[pid] |                     children                       |
   |:--------:|:--------------------------------------------------:|
   |        3 | [{"name":Wine, "id": 7, "url":..., "children":[]}, {"name":Beer, "id": 8, "url":..., "children":[]}] |
-  <!-- |          |   | -->
 
   End node
   | name | id | url |                       children                       |
   |:----:|:--:|:---:|:----------------------------------------------------:|
-  |      |    |     | {"name":Drinks, "id":3, "url":..., "children":       |
-  | Best |  1 | ... | [{"name":Wine, "id":7, "url"..., "children"[]},      |
-  |      |    |     |  {"name":Beer, "id":8, "url"..., "children"[]}], ... |
+  | Best |  1 | ... | {"name":Drinks, "id":3, "url":..., "children":[{"name":Wine, "id":7, "url"..., "children"[]}, {"name":Beer, "id":8, "url"..., "children"[]}], ...         |
+  <!-- | Best |  1 | ... | [{"name":Wine, "id":7, "url"..., "children"[]},      |
+  |      |    |     |  {"name":Beer, "id":8, "url"..., "children"[]}], ... | -->
 
