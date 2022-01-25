@@ -1,0 +1,10 @@
+#!/bin/bash -x
+
+sudo apt install python3.8-venv
+python3 -m venv venv
+activate(){
+    . venv/bin/activate
+}
+activate
+
+pip install -r requirements.txt && python3 main.py

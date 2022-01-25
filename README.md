@@ -9,22 +9,12 @@ Pytest
 
 Installation and setup instructions:
 Note: Make sure that the current directory is in csv_converter
-1. If you don't have pyenv installed, execute the installation script
-    bash install.sh
-2. Create a virtual env using script 
-    bash create_venv.sh
-3. Activate to your VENV
-    pyenv activate py_3_8_12
-4. Install required packages
-    pip install -r requirements.txt
+1. Run command
+    > . run_app.sh
 
 Running tests:  Note: Make sure that the current directory is in csv_converter
-1. Run pytest
-    py.test
-
-Running the app:    Note: Make sure that the current directory is in csv_converter
-1. Run main.py
-    python3 main.py
+1. Run command
+    > . run_test.sh
 
 Logic of handle:    Note: Assumption that csv file is valid
 The input CSV will look like
@@ -37,9 +27,7 @@ The input CSV will look like
   | "/browse" |    1 |   Best |  ...  |    3 | Drinks |  ...  |    7 |   Wine |  ...  |
   | "/browse" |    1 |   Best |  ...  |    3 | Drinks |  ...  |    8 |   Beer |  ...  |
   
-
-
-It will then be converted to a dictionary with level as keys, and rows with values from columns specific to that level
+It will be converted to a dictionary with level as keys, and rows with values from columns specific to that level
 
   Level 1
   | key[id] | name | id | url |
@@ -62,7 +50,7 @@ It will then be converted to a dictionary with level as keys, and rows with valu
   |         (3, 8) |   Beer |  8 | ... |
 
 
-It will then be combined to a single node. Rows having common parent will be aggregated together
+It will be combined to a single node. Rows having common parent will be aggregated together
 
   Sample aggregate
   | key[pid] |                     children                       |

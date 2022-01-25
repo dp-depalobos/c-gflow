@@ -6,30 +6,31 @@ class NodeOperator:
         additional columns or combining rows together """
 
     def create_depth_node(self, max_depth, rows, columns):
-        dct = {}
+        """ Creates collection of level to Node. 
+            A node consists of Name, ID and URL for the first node.
+            And Parent ID, Name, ID, and URL for subsequent nodes."""
+        depth_node_dct = {}
         for i in range(max_depth, 0, -1):
-            cols = self.get_column_names(columns, i)
+            column_names = self.get_column_names(columns, i)
             if i == 1:
-                node = self.get_first_node(rows, cols[0],
-                                           cols[1], cols[2])
-                dct[i] = node
+                node = self.get_first_node(rows, *column_names)
+                depth_node_dct[i] = node
             else:
                 pid = self.get_parent_column(i)
-                node = self.get_node(rows, pid, cols[0],
-                                     cols[1], cols[2])
-                dct[i] = node
-        return dct
+                node = self.get_node(rows, pid, *column_names)
+                depth_node_dct[i] = node
+        return depth_node_dct
 
     def get_column_names(self, headers, depth):
         pattern = str(depth) + str(" ")
-        cols = [col for col in headers if pattern in col]
-        for col in cols:
-            if "name" in col.lower():
-                name = col
-            if "url" in col.lower():
-                url = col
-            if "id" in col.lower():
-                id = col
+        columns = [column for column in headers if pattern in column]
+        for column in columns:
+            if "name" in column.lower():
+                name = column
+            if "url" in column.lower():
+                url = column
+            if "id" in column.lower():
+                id = column
         return name, id, url
 
     def aggregate_columns(self, rows):
@@ -66,7 +67,7 @@ class NodeOperator:
         return node
 
     def get_parent_column(self, depth):
-        return LEVEL + str(depth - 1) + str(ID)
+        return LEVEL + str(depth - 1) + ID
 
     def get_node(self, rows, parent, name, id, url):
         """ Creates a dict using tuple of pid and id as key to account 
@@ -75,12 +76,13 @@ class NodeOperator:
         node = {}
         for row in rows:
             row_id = row[id]
-            if row_id:
-                node[(row_id, row[parent])] = {"pid":row[parent],
-                                               "label":row[name],
-                                               "ID":row[id],
-                                               "link":row[url],
-                                               "children":[]}
+            pid = row[parent]
+            if row_id and (row_id, pid) not in node:
+                node[(row_id, pid)] = {"pid":row[parent],
+                                       "label":row[name],
+                                       "ID":row[id],
+                                       "link":row[url],
+                                       "children":[]}
         return node
 
     def combine_nodes(self, node, max_depth):

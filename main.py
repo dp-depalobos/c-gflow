@@ -1,8 +1,7 @@
-from src.app import app
 from src.csv_operator import CsvOperator as csv_opr
 from flask import flash, request, redirect, render_template
 
-from src.handler import handle
+from src.handler import handle, app
 ALLOWED_EXTENSION = "csv"
 
 def allowed_file(filename):
@@ -35,7 +34,7 @@ def upload_file():
             flash("Missing mandatory columns")
             return redirect(request.url)
 
-        result = handle(c_opr.columns, c_opr.rows, c_opr.depth)
+        result = handle(c_opr.header, c_opr.rows, c_opr.depth)
         flash("File successfully uploaded")
         return render_template("upload.html", filename=result)
 
